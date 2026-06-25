@@ -984,7 +984,7 @@ function inicializarApp() {
                 `Share Interno Médio: ${(d.pareto*100).toFixed(2)}%`,
                 `MC % Média: ${(d.mcPct*100).toFixed(2)}%`,
                 `Qtd Vendida Total: ${d.qtd.toFixed(0)} un.`,
-                `Faturamento Total: R$ ${d.venda.toFixed(2)}`
+                `Faturamento Total: R$ ${d.Fat. Total.toFixed(2)}`
               ];
             }
           },
@@ -1166,7 +1166,7 @@ function atualizarGrafico() {
       const cls = classificar(r);
       const nx = normX(r.pareto, state.benchmarks[r.unidade]?.[r.grupo]?.fator || 0.5, eixos.maxPareto);
       const ny = normY(r.mcPct, state.benchmarks[r.unidade]?.[r.grupo]?.mediaMC || 0.5, eixos.minMC, eixos.maxMC);
-      pontos.push({ x:nx, y:ny, r:7, label:r.item, grupo:r.grupo, unidade:r.unidade, pareto:r.pareto, mcPct:r.mcPct, qtd:r.venda, venda:r.venda, cls });
+      pontos.push({ x:nx, y:ny, r:7, label:r.item, grupo:r.grupo, unidade:r.unidade, pareto:r.pareto, mcPct:r.mcPct, qtd:r.qtd, venda:r.venda, cls });
       cores.push(colorir === 'bcg' ? corBCG(cls) : (colorir === 'unidade' ? (mapaCoresUnidade[r.unidade]||'#64748b') : (mapaCores[r.grupo]||'#64748b')));
     });
   }
