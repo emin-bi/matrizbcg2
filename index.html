@@ -7,9 +7,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- FILTROS, EXPORTAÇÃO CONSOLIDADA, LEGENDA SIMPLES E TITULO DE COLUNAS -->
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 :root {
   --bg:#f0f2f5; --surface:#fff; --surface-2:#f8fafc;
   --border:#e2e8f0; --border-strong:#cbd5e1;
@@ -140,7 +142,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .parametros-grupo { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 14px; background: var(--surface-2); border-radius: var(--rs); border: 1px solid var(--border); font-size: 11px; color: var(--muted); }
 .legenda-cores { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; align-items: center; }
 .legenda-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; width: 100%; }
-.legenda-fatores { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; align-items: center; width: 100%; padding-top: 6px; border-top: 1px dashed var(--border); }
+.legenda-fatores { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; align-items: center; width: 100%; padding-top: 6px; }
 .legenda-fator-item { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--muted); }
 .legenda-fator-nome { font-weight: 700; color: var(--text); }
 .legenda-fator-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
@@ -320,7 +322,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
                 <option value="quebra">🧩 PONTO DE INTERROGAÇÃO (Baixa Popularidade e Alta Margem)</option>
                 <option value="burro">🐴 BURRO DE CARGA (Alta Popularidade e Baixa Margem)</option>
               </select>
-              <button class="btn btn-secondary" onclick="baixarExcelQuadrante()" style="padding: 4px 10px; font-size: 11px; height: 26px; display: inline-flex; align-items: center; white-space: nowrap;">⬇️ Exportar Excel</button>
+              <button class="btn btn-secondary" onclick="baixarExcelQuadrante()" style="padding: 4px 10px; font-size: 11px; height: 26px; display: inline-flex; align-items: center; white-space: nowrap;">⬇️ Exportar Excel Completo</button>
             </div>
           </div>
           <div class="analise-grid" id="analise-quadrante-resultado"></div>
@@ -405,6 +407,7 @@ let state = {
 let chartInstance = null;
 let accStates = { estrela: false, quebra: false, burro: false, abacaxi: false };
 let arquivoCarregado = null;
+let legendaGruposMinimizada = false; // Controle de estado para legenda expansível
 
 const CORES = ['#4f46e5','#ec4899','#06b6d4','#84cc16','#a855f7','#f97316','#14b8a6','#ef4444','#10b981','#64748b'];
 let mapaCores = {};
@@ -432,6 +435,11 @@ function toggleMultiselectDropdown(event, id) {
   document.getElementById('wp-unidades')?.classList.remove('open');
   document.getElementById('wp-grupos')?.classList.remove('open');
   if (!isOpen) target.classList.add('open');
+}
+
+function toggleLegendaGrupos() {
+  legendaGruposMinimizada = !legendaGruposMinimizada;
+  atualizarGrafico();
 }
 
 // ════════════════════════════════════════
@@ -607,41 +615,81 @@ function processarVendas(rows) {
 // ════════════════════════════════════════
 function popularFiltros() {
   const containerUnidades = document.getElementById('unidades-options');
-  containerUnidades.innerHTML = '';
+  containerUnidades.innerHTML = `
+    <label class="dropdown-option" style="border-bottom: 1px solid var(--border); font-weight: 600; color: var(--primary); padding-bottom: 8px; margin-bottom: 4px;">
+      <input type="checkbox" id="chk-all-unidades" onchange="toggleAllUnidades(this)"> Selecionar Todos
+    </label>
+  `;
   state.unidades.forEach(u => {
     const label = document.createElement('label');
     label.className = 'dropdown-option';
-    label.innerHTML = `<input type="checkbox" value="${u}" onchange="aoMudarCheckboxUnidade()"> ${u}`;
+    label.innerHTML = `<input type="checkbox" class="chk-unidade" value="${u}" onchange="aoMudarCheckboxUnidade()"> ${u}`;
     containerUnidades.appendChild(label);
   });
 
   const containerGrupos = document.getElementById('grupos-options');
-  containerGrupos.innerHTML = '';
+  containerGrupos.innerHTML = `
+    <label class="dropdown-option" style="border-bottom: 1px solid var(--border); font-weight: 600; color: var(--primary); padding-bottom: 8px; margin-bottom: 4px;">
+      <input type="checkbox" id="chk-all-grupos" onchange="toggleAllGrupos(this)"> Selecionar Todos
+    </label>
+  `;
   state.gruposList.forEach(g => {
     const label = document.createElement('label');
     label.className = 'dropdown-option';
-    label.innerHTML = `<input type="checkbox" value="${g}" onchange="aoMudarCheckboxGrupo()"> ${g}`;
+    label.innerHTML = `<input type="checkbox" class="chk-grupo" value="${g}" onchange="aoMudarCheckboxGrupo()"> ${g}`;
     containerGrupos.appendChild(label);
   });
 }
 
+function toggleAllUnidades(chk) {
+  document.querySelectorAll('.chk-unidade').forEach(el => el.checked = chk.checked);
+  aoMudarCheckboxUnidade();
+}
+
+function toggleAllGrupos(chk) {
+  document.querySelectorAll('.chk-grupo').forEach(el => el.checked = chk.checked);
+  aoMudarCheckboxGrupo();
+}
+
 function aoMudarCheckboxUnidade() {
-  const checkboxes = document.querySelectorAll('#unidades-options input[type="checkbox"]');
-  state.filtroUnidades = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+  const checkboxes = document.querySelectorAll('.chk-unidade');
+  const marcados = Array.from(checkboxes).filter(cb => cb.checked);
+  state.filtroUnidades = marcados.map(cb => cb.value);
+
+  const chkAll = document.getElementById('chk-all-unidades');
+  if (chkAll) {
+    chkAll.checked = (marcados.length === checkboxes.length && checkboxes.length > 0);
+  }
+
   const label = document.getElementById('dropdown-selected-label');
-  if (state.filtroUnidades.length === 0) label.textContent = "Todas as Unidades";
-  else if (state.filtroUnidades.length === 1) label.textContent = state.filtroUnidades[0];
-  else label.textContent = `${state.filtroUnidades.length} selecionadas`;
+  if (state.filtroUnidades.length === 0 || state.filtroUnidades.length === checkboxes.length) {
+    label.textContent = "Todas as Unidades";
+  } else if (state.filtroUnidades.length === 1) {
+    label.textContent = state.filtroUnidades[0];
+  } else {
+    label.textContent = `${state.filtroUnidades.length} selecionadas`;
+  }
   aplicarFiltros();
 }
 
 function aoMudarCheckboxGrupo() {
-  const checkboxes = document.querySelectorAll('#grupos-options input[type="checkbox"]');
-  state.filtroGrupos = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+  const checkboxes = document.querySelectorAll('.chk-grupo');
+  const marcados = Array.from(checkboxes).filter(cb => cb.checked);
+  state.filtroGrupos = marcados.map(cb => cb.value);
+  
+  const chkAll = document.getElementById('chk-all-grupos');
+  if (chkAll) {
+    chkAll.checked = (marcados.length === checkboxes.length && checkboxes.length > 0);
+  }
+
   const label = document.getElementById('dropdown-grupos-selected-label');
-  if (state.filtroGrupos.length === 0) label.textContent = "Todos os Grupos";
-  else if (state.filtroGrupos.length === 1) label.textContent = state.filtroGrupos[0];
-  else label.textContent = `${state.filtroGrupos.length} selecionados`;
+  if (state.filtroGrupos.length === 0 || state.filtroGrupos.length === checkboxes.length) {
+    label.textContent = "Todos os Grupos";
+  } else if (state.filtroGrupos.length === 1) {
+    label.textContent = state.filtroGrupos[0];
+  } else {
+    label.textContent = `${state.filtroGrupos.length} selecionados`;
+  }
   aplicarFiltros();
 }
 
@@ -757,15 +805,28 @@ function renderAnaliseQuadrante() {
       </div>
     </div>
     <div style="display: flex; flex-direction: column; gap: 6px;">
+      
+      <div class="prod-card" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr 0.8fr 1fr 1fr 0.8fr 0.8fr; align-items: center; padding: 10px 12px; gap: 8px; font-weight: 700; background: var(--surface-2); color: var(--muted); font-size: 11px;">
+        <div>Item / Produto</div>
+        <div>Unidade</div>
+        <div>Grupo</div>
+        <div>Qtd</div>
+        <div>Venda U.</div>
+        <div>Custo U.</div>
+        <div>MC %</div>
+        <div>Share %</div>
+      </div>
   `;
 
   itemsFiltrados.forEach(r => {
     html += `
-      <div class="prod-card" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr 0.8fr 0.8fr 0.8fr; align-items: center; padding: 10px 12px; gap: 8px;">
+      <div class="prod-card" style="display: grid; grid-template-columns: 2fr 1.2fr 1fr 0.8fr 1fr 1fr 0.8fr 0.8fr; align-items: center; padding: 10px 12px; gap: 8px;">
         <div class="prod-name" style="font-weight:700;" title="${r.item}">${r.item}</div>
         <div style="color:var(--muted); font-size:11px;">📍 ${r.unidade}</div>
         <div style="color:var(--muted); font-size:11px;">🏷️ ${r.grupo}</div>
         <div>📦 ${r.qtd.toFixed(0)}</div>
+        <div style="color:var(--text); font-size:11px;">R$ ${r.vendaU.toFixed(2)}</div>
+        <div style="color:var(--text); font-size:11px;">R$ ${r.custoU.toFixed(2)}</div>
         <div style="font-weight:600;">💰 ${(r.mcPct*100).toFixed(1)}%</div>
         <div style="font-weight:600;">📊 ${(r.pareto*100).toFixed(1)}%</div>
       </div>`;
@@ -1089,7 +1150,7 @@ function atualizarGrafico() {
   rowHtml += '</div>';
   legendaContainer.innerHTML += rowHtml;
 
-  // ── LINHA 2: Fator Pop. e Margem Pond. por grupo ──
+  // ── LINHA 2: Fator Pop. e Margem Pond. por grupo (C/ Minimizar) ──
   const gruposVisiveis = [...new Set(rows.map(r => r.grupo))].sort();
   const fatoresGrupo = {};
   gruposVisiveis.forEach(g => {
@@ -1111,19 +1172,30 @@ function atualizarGrafico() {
     };
   });
 
-  let fatoresHtml = '<div class="legenda-fatores">';
-  gruposVisiveis.forEach(g => {
-    const f = fatoresGrupo[g];
+  let fatoresHtml = '';
+  if (gruposVisiveis.length > 0) {
     fatoresHtml += `
-      <div class="legenda-fator-item">
-        <span class="legenda-fator-dot" style="background:${f.cor}"></span>
-        <span class="legenda-fator-nome">${g}:</span>
-        <span>Corte Pop. (70% Médio): <span class="legenda-fator-pop">${(f.fator * 100).toFixed(2)}%</span></span>
-        <span>·</span>
-        <span>MC Ref. Ponderada: <span class="legenda-fator-mc">${(f.mediaMC * 100).toFixed(2)}%</span></span>
-      </div>`;
-  });
-  fatoresHtml += '</div>';
+      <div style="width: 100%; text-align: center; margin-top: 4px;">
+        <button onclick="toggleLegendaGrupos()" style="background:none; border:none; font-size:10.5px; font-weight:600; color:var(--primary); cursor:pointer; font-family:inherit; padding: 4px;">
+          ${legendaGruposMinimizada ? 'Expandir Legenda de Grupos ▼' : 'Minimizar Legenda de Grupos ▲'}
+        </button>
+      </div>
+      <div class="legenda-fatores" style="display: ${legendaGruposMinimizada ? 'none' : 'flex'};">`;
+    
+    gruposVisiveis.forEach(g => {
+      const f = fatoresGrupo[g];
+      fatoresHtml += `
+        <div class="legenda-fator-item">
+          <span class="legenda-fator-dot" style="background:${f.cor}"></span>
+          <span class="legenda-fator-nome">${g}:</span>
+          <span>Corte Pop. (70% Médio): <span class="legenda-fator-pop">${(f.fator * 100).toFixed(2)}%</span></span>
+          <span>·</span>
+          <span>MC Ref. Ponderada: <span class="legenda-fator-mc">${(f.mediaMC * 100).toFixed(2)}%</span></span>
+        </div>`;
+    });
+    fatoresHtml += '</div>';
+  }
+  
   legendaContainer.innerHTML += fatoresHtml;
 
   let pontos = [], cores = [];
@@ -1200,6 +1272,7 @@ function voltarUpload() {
   arquivoCarregado = null;
   state.filtroUnidades = [];
   state.filtroGrupos = [];
+  legendaGruposMinimizada = false;
   const lblUnd = document.getElementById('dropdown-selected-label');
   if (lblUnd) lblUnd.textContent = "Todas as Unidades";
   const lblGrp = document.getElementById('dropdown-grupos-selected-label');
@@ -1233,29 +1306,53 @@ function baixarModelo() {
 // IMPLEMENTAÇÕES DE DOWNLOADS ADICIONADAS
 // ════════════════════════════════════════
 function baixarExcelQuadrante() {
-  const qSelected = document.getElementById('sel-quadrante-analise').value;
-  const itemsFiltrados = state.filteredRows.filter(r => classificar(r) === qSelected);
-  if (itemsFiltrados.length === 0) return;
-  
-  const meta = BCG_META[qSelected];
-  const headers = ['Item / Produto', 'Unidade / Loja', 'Grupo / Categoria', 'Quantidade Venda', 'Margem MC % Real', 'Share Pop %'];
-  const rows = [headers];
-  
-  itemsFiltrados.forEach(r => {
-    rows.push([
-      r.item, 
-      r.unidade, 
-      r.grupo, 
-      r.qtd, 
-      Number((r.mcPct * 100).toFixed(2)), 
-      Number((r.pareto * 100).toFixed(2))
-    ]);
-  });
+  if (state.filteredRows.length === 0) return;
   
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, meta.nome.substring(0, 30));
-  XLSX.writeFile(wb, `relatorio_quadrante_${qSelected}.xlsx`);
+  
+  // Cabeçalhos agora incluem Venda Unitário e Custo Unitário, e no consolidado teremos Quadrante
+  const headers = ['Item / Produto', 'Unidade / Loja', 'Grupo / Categoria', 'Quantidade Venda', 'Venda Unitário', 'Custo Unitário', 'Margem MC % Real', 'Share Pop %', 'Quadrante'];
+  
+  // Linhas para a aba Consolidada
+  const consolidadoRows = [headers];
+  
+  // Array com todos os quadrantes que precisam gerar abas
+  const quadrantes = ['estrela', 'quebra', 'burro', 'abacaxi'];
+  
+  quadrantes.forEach(q => {
+    const items = state.filteredRows.filter(r => classificar(r) === q);
+    const meta = BCG_META[q];
+    const qRows = [headers];
+    
+    items.forEach(r => {
+      const rowData = [
+        r.item, 
+        r.unidade, 
+        r.grupo, 
+        r.qtd, 
+        r.vendaU,      // Venda Unitário incluído
+        r.custoU,      // Custo Unitário incluído
+        Number((r.mcPct * 100).toFixed(2)), 
+        Number((r.pareto * 100).toFixed(2)),
+        meta.nome      // Coluna exclusiva para filtrar qual quadrante no consolidado
+      ];
+      
+      qRows.push(rowData);           // Alimentando a aba específica
+      consolidadoRows.push(rowData); // Alimentando a aba Consolidado
+    });
+    
+    // Tratativa para nomes com barras (ex: "Abacaxi/Cão") para não quebrar no Excel
+    const sheetName = meta.nome.replace(/[/\\?*[\]]/g, '-').substring(0, 30);
+    
+    const ws = XLSX.utils.aoa_to_sheet(qRows);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+  
+  // Criação da aba Consolidado
+  const wsConsolidado = XLSX.utils.aoa_to_sheet(consolidadoRows);
+  XLSX.utils.book_append_sheet(wb, wsConsolidado, 'Consolidado');
+  
+  XLSX.writeFile(wb, `relatorio_analise_quadrantes_completo.xlsx`);
 }
 
 function baixarExcelBaseCalculos() {
